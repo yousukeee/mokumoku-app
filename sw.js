@@ -1,6 +1,6 @@
 const CACHE = 'mokumoku-v1';
 const ASSETS = ['./', './index.html', './app.js', './manifest.json',
-                './icons/icon-192.png', './icons/icon-512.png'];
+                './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
@@ -21,16 +21,14 @@ self.addEventListener('fetch', e => {
   );
 });
 
-// メインスレッドから通知を受け取る
 self.addEventListener('message', e => {
   if (e.data?.type === 'NOTIFY') {
     self.registration.showNotification(e.data.title, {
       body: e.data.body,
-      icon: './icons/icon-192.png',
-      badge: './icons/icon-192.png',
+      icon: './icon-192.png',
+      badge: './icon-192.png',
       vibrate: [300, 100, 300, 100, 300],
       tag: 'mokumoku',
-      requireInteraction: false,
     });
   }
 });

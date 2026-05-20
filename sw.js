@@ -1,4 +1,4 @@
-const CACHE = 'mokumoku-v1';
+const CACHE = 'mokumoku-v2';
 const ASSETS = ['./', './index.html', './app.js', './manifest.json',
                 './icon-192.png', './icon-512.png'];
 

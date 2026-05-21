@@ -314,7 +314,7 @@ function App() {
 
   return (
     <div style={{
-      minHeight: '100svh', display: 'flex', flexDirection: 'column',
+      height: '100svh', display: 'flex', flexDirection: 'column',
       background: 'linear-gradient(160deg,#0f1923 0%,#1a2a38 50%,#0f1923 100%)',
       fontFamily: font, color: '#e2e8f0',
       maxWidth: 480, margin: '0 auto', position: 'relative',

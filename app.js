@@ -186,16 +186,36 @@ function App() {
   useEffect(() => {
     const t = timers.current;
 
+    // 稼働時間：10:00〜22:00
+    function isActiveHour() {
+      const h = new Date().getHours();
+      return h >= 10 && h < 22;
+    }
+
+    // 次の10:00までのms（稼働外のとき）
+    function msUntilTen() {
+      const n = new Date();
+      const next = new Date(n);
+      if (n.getHours() >= 22) next.setDate(next.getDate() + 1);
+      next.setHours(10, 0, 0, 0);
+      return next.getTime() - n.getTime();
+    }
+
     function addMsg(msg) { setFeed(prev => [...prev, msg]); }
 
     function completeAI(memberId) {
       addMsg({ id: uid(), memberId, type: 'done', text: '✅ 完了！',
                deadline: null, deadlineTs: null, timeStr: fmtHM(new Date()), done: true });
       setAiActive(prev => ({ ...prev, [memberId]: false }));
-      scheduleAI(memberId, rand(90, 270) * 1000);  // 1.5〜4.5分後に次のタスク
+      scheduleAI(memberId, rand(90, 270) * 1000);
     }
 
     function runAI(memberId) {
+      if (!isActiveHour()) {
+        // 稼働外なら次の10:00に再スケジュール
+        scheduleAI(memberId, msUntilTen() + rand(0, 300) * 1000);
+        return;
+      }
       const text = pick(AI_TASKS[memberId]);
       const deadlineMin = rand(15, 45);
       const dl = addMin(new Date(), deadlineMin);
@@ -204,7 +224,6 @@ function App() {
                deadline: fmtHM(dl), deadlineTs: dl.getTime(),
                timeStr: fmtHM(new Date()), done: false });
       setAiActive(prev => ({ ...prev, [memberId]: true }));
-      // 締め切りの2〜8分前に完了
       const completeDelay = Math.max((deadlineMin - rand(2, 8)) * 60000, 60000);
       clearTimeout(t[`${memberId}_c`]);
       t[`${memberId}_c`] = setTimeout(() => completeAI(memberId), completeDelay);
@@ -212,7 +231,12 @@ function App() {
 
     function scheduleAI(memberId, delay) {
       clearTimeout(t[memberId]);
-      t[memberId] = setTimeout(() => runAI(memberId), delay);
+      // 発火予定時刻が稼働外なら次の10:00に変更
+      const fireAt = Date.now() + delay;
+      const fireHour = new Date(fireAt).getHours();
+      const inRange = fireHour >= 10 && fireHour < 22;
+      const actualDelay = inRange ? delay : msUntilTen() + rand(0, 300) * 1000;
+      t[memberId] = setTimeout(() => runAI(memberId), actualDelay);
     }
 
     // 佐藤の現在タスクを締め切り前に完了させる
@@ -257,6 +281,15 @@ function App() {
   const handleComplete = () => {
     setFeed(prev => [...prev, {
       id: uid(), memberId: 'me', type: 'done', text: '✅ 完了！',
+      deadline: null, deadlineTs: null, timeStr: fmtHM(new Date()), done: true,
+    }]);
+    setMyTask(null);
+  };
+
+  // ─── ユーザー：中断 ───
+  const handleStop = () => {
+    setFeed(prev => [...prev, {
+      id: uid(), memberId: 'me', type: 'done', text: '⏹ 中断しました',
       deadline: null, deadlineTs: null, timeStr: fmtHM(new Date()), done: true,
     }]);
     setMyTask(null);
@@ -372,6 +405,11 @@ function App() {
               padding:'7px 13px', color:'#fff', fontSize:12, fontWeight:700,
               fontFamily: font, cursor:'pointer',
             }}>完了</button>
+            <button onClick={handleStop} style={{
+              background:'rgba(255,255,255,.08)', border:'1px solid rgba(255,255,255,.15)',
+              borderRadius:8, padding:'7px 11px', color:'#94a3b8',
+              fontSize:12, fontWeight:700, fontFamily: font, cursor:'pointer',
+            }}>中断</button>
           </div>
         </div>
       )}

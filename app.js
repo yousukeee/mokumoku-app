@@ -189,7 +189,7 @@ function App() {
     // 稼働時間：10:00〜22:00
     function isActiveHour() {
       const h = new Date().getHours();
-      return h >= 10 && h < 22;
+      return h >= 9 && h < 22;
     }
 
     // 次の10:00までのms（稼働外のとき）
@@ -197,7 +197,7 @@ function App() {
       const n = new Date();
       const next = new Date(n);
       if (n.getHours() >= 22) next.setDate(next.getDate() + 1);
-      next.setHours(10, 0, 0, 0);
+      next.setHours(9, 0, 0, 0);
       return next.getTime() - n.getTime();
     }
 

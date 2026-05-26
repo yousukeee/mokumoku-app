@@ -141,13 +141,43 @@ function makeInitialFeed() {
 // ────────────────────────────────────────────────────────────
 //  App
 // ────────────────────────────────────────────────────────────
-function App() {
-  const init   = useRef(makeInitialFeed());
-  const timers = useRef({});
-  const feedEnd = useRef(null);
 
-  const [feed,     setFeed]     = useState(init.current.msgs);
-  const [myTask,   setMyTask]   = useState(null);   // {text, deadlineTs, n5, n0}
+// ─────────────────────────────────────────────────────────────
+//  localStorage ヘルパー（24時間フィルター）
+// ─────────────────────────────────────────────────────────────
+const LS_KEY  = 'mokumoku_feed';
+const H24     = 24 * 60 * 60 * 1000;
+
+function loadFeed() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return null;
+    const cutoff = Date.now() - H24;
+    return JSON.parse(raw).filter(m => (m.savedAt || 0) >= cutoff);
+  } catch { return null; }
+}
+
+function saveFeed(feed) {
+  try {
+    const ts = Date.now();
+    const cutoff = ts - H24;
+    const data = feed
+      .map(m => ({ ...m, savedAt: m.savedAt || ts }))
+      .filter(m => m.savedAt >= cutoff);
+    localStorage.setItem(LS_KEY, JSON.stringify(data));
+  } catch {}
+}
+
+function App() {
+  const saved     = useRef(loadFeed());
+  const init      = useRef(makeInitialFeed());
+  const timers    = useRef({});
+  const feedEnd   = useRef(null);
+  const feedArea  = useRef(null);
+  const atBottom  = useRef(true);
+
+  const [feed,     setFeed]     = useState(saved.current || init.current.msgs);
+  const [myTask,   setMyTask]   = useState(null);
   const [aiActive, setAiActive] = useState({ sato: true });
   const [showModal, setShowModal] = useState(false);
   const [taskText,  setTaskText]  = useState('');
@@ -163,9 +193,23 @@ function App() {
   // ─── 通知許可（起動時） ───
   useEffect(() => { askNotifPerm(); }, []);
 
-  // ─── フィード末尾スクロール ───
+  // ─── スクロール位置を監視（一番下にいるか） ───
   useEffect(() => {
-    feedEnd.current?.scrollIntoView({ behavior: 'smooth' });
+    const el = feedArea.current;
+    if (!el) return;
+    const onScroll = () => {
+      atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, []);
+
+  // ─── 新メッセージ：一番下にいるときだけ自動スクロール ───
+  useEffect(() => {
+    if (atBottom.current) {
+      feedEnd.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+    saveFeed(feed);
   }, [feed]);
 
   // ─── マイタスク 締め切り監視 ───
@@ -415,7 +459,7 @@ function App() {
       )}
 
       {/* ════════════════ フィード ════════════════ */}
-      <main style={{
+      <main ref={feedArea} style={{
         flex:1, overflowY:'auto',
         padding:`12px 12px ${myTask ? 88 : 108}px`,
       }}>
